@@ -147,6 +147,8 @@ async function fetchFitData() {
     if (!res.ok) throw new Error(`Fit API ${res.status}`);
 
     const json = await res.json();
+    console.log('Google Fit response:', JSON.stringify(json).substring(0, 500));
+    console.log('Buckets:', json.bucket?.length || 0);
     let newBpm = null;
     let newSpo2 = null;
     let latestBpmTime = 0;
@@ -176,11 +178,12 @@ async function fetchFitData() {
       }
     }
 
+    console.log('Fit parsed: BPM=' + newBpm + ' SpO2=' + newSpo2);
+
     if (newBpm !== null || newSpo2 !== null) {
       fitLastUpdate = Math.max(latestBpmTime, latestSpo2Time) || now;
       onFitDataReceived(newBpm, newSpo2);
     } else {
-      // Connected but no readings found in 3 hours
       console.warn('Google Fit: connected but no readings in last 3 hours');
       onFitNoData();
     }
