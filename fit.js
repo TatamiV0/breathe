@@ -1,11 +1,10 @@
 // ── Google Fit Integration ──
 // Uses Google Identity Services (GSI) for OAuth 2.0
-// Fetches heart rate + SpO2 from Google Fit REST API
+// Redirect mode — works on mobile, watch, and desktop
 
 const FIT_SCOPES = 'https://www.googleapis.com/auth/fitness.heart_rate.read https://www.googleapis.com/auth/fitness.oxygen_saturation.read';
 const FIT_API = 'https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate';
 
-let fitTokenClient = null;
 let fitAccessToken = null;
 let fitTokenExpiry = 0;
 let fitRefreshTimer = null;
@@ -14,51 +13,66 @@ let fitConnected = false;
 
 // ── Init ──
 function initFit() {
-  // Restore token from storage
-  const stored = localStorage.getItem('breathe_fit_token');
-  if (stored) {
-    const { token, expiry } = JSON.parse(stored);
-    if (expiry > Date.now()) {
+  // 1. Check if returning from OAuth redirect (token in URL hash)
+  if (window.location.hash) {
+    const params = new URLSearchParams(window.location.hash.substring(1));
+    const token = params.get('access_token');
+    const expiresIn = params.get('expires_in');
+    if (token) {
       fitAccessToken = token;
-      fitTokenExpiry = expiry;
+      fitTokenExpiry = Date.now() + (parseInt(expiresIn, 10) * 1000) - 60000;
       fitConnected = true;
+      localStorage.setItem('breathe_fit_token', JSON.stringify({
+        token: fitAccessToken,
+        expiry: fitTokenExpiry
+      }));
+      // Clean up URL hash
+      history.replaceState(null, '', window.location.pathname);
       onFitConnected();
       return;
     }
   }
+
+  // 2. Check stored token
+  const stored = localStorage.getItem('breathe_fit_token');
+  if (stored) {
+    try {
+      const { token, expiry } = JSON.parse(stored);
+      if (expiry > Date.now()) {
+        fitAccessToken = token;
+        fitTokenExpiry = expiry;
+        fitConnected = true;
+        onFitConnected();
+        return;
+      }
+    } catch (e) {
+      localStorage.removeItem('breathe_fit_token');
+    }
+  }
+
   showFitConnect();
 }
 
-// ── GSI Token Client ──
-function setupTokenClient() {
-  if (fitTokenClient) return;
-  if (typeof google === 'undefined' || !google.accounts) {
-    console.warn('GSI not loaded yet');
+// ── Connect via Redirect ──
+function connectFit() {
+  if (!CONFIG.GOOGLE_CLIENT_ID || CONFIG.GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID') {
+    showFitConnect('Set GOOGLE_CLIENT_ID in config.js');
+    console.error('Google Fit: GOOGLE_CLIENT_ID not configured');
     return;
   }
-  fitTokenClient = google.accounts.oauth2.initTokenClient({
+
+  // Build OAuth URL and redirect
+  const redirectUri = window.location.origin + window.location.pathname;
+  const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
     client_id: CONFIG.GOOGLE_CLIENT_ID,
+    redirect_uri: redirectUri,
+    response_type: 'token',
     scope: FIT_SCOPES,
-    callback: handleTokenResponse,
-  });
-}
+    include_granted_scopes: 'true',
+    prompt: 'consent'
+  }).toString();
 
-function handleTokenResponse(response) {
-  if (response.error) {
-    console.error('Fit auth error:', response.error);
-    showFitConnect('Connection failed. Tap to retry.');
-    return;
-  }
-  fitAccessToken = response.access_token;
-  fitTokenExpiry = Date.now() + (response.expires_in * 1000) - 60000; // refresh 1 min early
-  fitConnected = true;
-
-  localStorage.setItem('breathe_fit_token', JSON.stringify({
-    token: fitAccessToken,
-    expiry: fitTokenExpiry
-  }));
-
-  onFitConnected();
+  window.location.href = authUrl;
 }
 
 // ── Connect / Disconnect UI ──
@@ -78,32 +92,13 @@ function onFitConnected() {
   fetchFitData();
   clearInterval(fitRefreshTimer);
   fitRefreshTimer = setInterval(() => {
-    ensureToken().then(() => fetchFitData());
+    if (fitAccessToken && fitTokenExpiry > Date.now()) {
+      fetchFitData();
+    } else {
+      disconnectFit();
+      showFitConnect('Session expired. Tap to reconnect.');
+    }
   }, CONFIG.FIT_REFRESH_MS);
-}
-
-function connectFit() {
-  if (!CONFIG.GOOGLE_CLIENT_ID || CONFIG.GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID') {
-    showFitConnect('Set GOOGLE_CLIENT_ID in config.js');
-    console.error('Google Fit: GOOGLE_CLIENT_ID not configured in config.js');
-    return;
-  }
-  if (typeof google === 'undefined' || !google.accounts) {
-    showFitConnect('Google not loaded. Check connection.');
-    console.error('Google Fit: GSI library not loaded');
-    return;
-  }
-  setupTokenClient();
-  if (!fitTokenClient) {
-    showFitConnect('Loading Google... tap again');
-    return;
-  }
-  try {
-    fitTokenClient.requestAccessToken();
-  } catch (err) {
-    console.error('Google Fit: OAuth request failed', err);
-    showFitConnect('Connection failed. Tap to retry.');
-  }
 }
 
 function disconnectFit() {
@@ -113,17 +108,6 @@ function disconnectFit() {
   clearInterval(fitRefreshTimer);
   localStorage.removeItem('breathe_fit_token');
   showFitConnect();
-}
-
-// ── Token Refresh ──
-async function ensureToken() {
-  if (fitAccessToken && fitTokenExpiry > Date.now()) return;
-  // Token expired — need user to re-auth
-  if (fitTokenClient) {
-    fitTokenClient.requestAccessToken();
-  } else {
-    disconnectFit();
-  }
 }
 
 // ── Fetch Vitals ──
@@ -153,6 +137,7 @@ async function fetchFitData() {
 
     if (res.status === 401) {
       disconnectFit();
+      showFitConnect('Session expired. Tap to reconnect.');
       return;
     }
 
@@ -182,7 +167,6 @@ async function fetchFitData() {
     if (newBpm !== null || newSpo2 !== null) {
       onFitDataReceived(newBpm, newSpo2);
     } else {
-      // No new data — keep current values, update timestamp
       updateFitTimestamp();
     }
   } catch (err) {
@@ -191,15 +175,7 @@ async function fetchFitData() {
   }
 }
 
-// ── Callbacks (implemented in app.js) ──
-function onFitDataReceived(newBpm, newSpo2) {
-  // Overridden in app.js
-}
-
-function updateSourceLabels(source) {
-  // Overridden in app.js
-}
-
-function updateFitTimestamp() {
-  // Overridden in app.js
-}
+// ── Callbacks (overridden in app.js) ──
+function onFitDataReceived(newBpm, newSpo2) {}
+function updateSourceLabels(source) {}
+function updateFitTimestamp() {}
