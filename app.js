@@ -196,12 +196,12 @@ async function getLocation() {
     console.warn('Geolocation denied, falling back to IP lookup');
   }
 
-  // Fallback: IP-based location
+  // Fallback: IP-based location via ipwho.is (free, HTTPS, no key)
   try {
-    const res = await fetch('https://ipapi.co/json/');
+    const res = await fetch('https://ipwho.is/');
     if (res.ok) {
       const json = await res.json();
-      if (json.latitude && json.longitude) {
+      if (json.success && json.latitude && json.longitude) {
         return { lat: json.latitude, lng: json.longitude };
       }
     }
