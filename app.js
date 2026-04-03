@@ -151,6 +151,13 @@ updateFitTimestamp = function() {
   }
 };
 
+onFitNoData = function() {
+  const bpmSrc = document.getElementById('bpm-source');
+  const spo2Src = document.getElementById('spo2-source');
+  if (bpmSrc) { bpmSrc.textContent = 'Fit connected \u00b7 no recent data'; bpmSrc.classList.add('fit-source'); }
+  if (spo2Src) { spo2Src.textContent = 'Fit connected \u00b7 no recent data'; spo2Src.classList.add('fit-source'); }
+};
+
 // ── Auto-save (debounced 3s) ──
 function scheduleSave() {
   clearTimeout(saveTimer);

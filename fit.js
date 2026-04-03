@@ -111,17 +111,20 @@ function disconnectFit() {
 }
 
 // ── Fetch Vitals ──
+// Queries last 3 hours in 15-min buckets to find the most recent reading.
+// Pixel Watch may not write data every 5 min — wider window catches the latest.
 async function fetchFitData() {
   if (!fitAccessToken) return;
 
   const now = Date.now();
+  const THREE_HOURS = 3 * 60 * 60 * 1000;
   const body = {
     aggregateBy: [
       { dataTypeName: 'com.google.heart_rate.bpm' },
       { dataTypeName: 'com.google.oxygen_saturation' }
     ],
-    bucketByTime: { durationMillis: 300000 },
-    startTimeMillis: now - 300000,
+    bucketByTime: { durationMillis: 900000 },   // 15-min buckets
+    startTimeMillis: now - THREE_HOURS,
     endTimeMillis: now
   };
 
@@ -146,33 +149,49 @@ async function fetchFitData() {
     const json = await res.json();
     let newBpm = null;
     let newSpo2 = null;
+    let latestBpmTime = 0;
+    let latestSpo2Time = 0;
 
+    // Walk all buckets — keep the most recent non-empty reading
     for (const bucket of (json.bucket || [])) {
+      const bucketStart = parseInt(bucket.startTimeMillis, 10);
       for (const ds of (bucket.dataset || [])) {
         for (const pt of (ds.point || [])) {
+          const ptTime = parseInt(pt.startTimeNanos, 10) / 1e6 || bucketStart;
           if (pt.dataTypeName === 'com.google.heart_rate.bpm') {
             const val = pt.value?.[0]?.fpVal;
-            if (val) newBpm = Math.round(val);
+            if (val && ptTime > latestBpmTime) {
+              newBpm = Math.round(val);
+              latestBpmTime = ptTime;
+            }
           }
           if (pt.dataTypeName === 'com.google.oxygen_saturation') {
             const val = pt.value?.[0]?.fpVal;
-            if (val) newSpo2 = Math.round(val);
+            if (val && ptTime > latestSpo2Time) {
+              newSpo2 = Math.round(val);
+              latestSpo2Time = ptTime;
+            }
           }
         }
       }
     }
 
-    fitLastUpdate = now;
-
     if (newBpm !== null || newSpo2 !== null) {
+      fitLastUpdate = Math.max(latestBpmTime, latestSpo2Time) || now;
       onFitDataReceived(newBpm, newSpo2);
     } else {
-      updateFitTimestamp();
+      // Connected but no readings found in 3 hours
+      console.warn('Google Fit: connected but no readings in last 3 hours');
+      onFitNoData();
     }
   } catch (err) {
     console.warn('Fit fetch failed:', err);
-    updateFitTimestamp();
+    onFitNoData();
   }
+}
+
+function onFitNoData() {
+  // Override in app.js — show "no recent data" in source label
 }
 
 // ── Callbacks (overridden in app.js) ──
