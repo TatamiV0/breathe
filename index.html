@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#FFFFFF">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Breathe</title>
+  <link rel="manifest" href="manifest.json">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@200;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+
+    <!-- Navigation -->
+    <nav class="nav">
+      <button id="nav-monitor" class="nav-btn active" onclick="showView('monitor')">Monitor</button>
+      <button id="nav-trends" class="nav-btn" onclick="showView('trends')">Trends</button>
+    </nav>
+
+    <!-- View 1: Live Monitor -->
+    <div id="monitor" class="view">
+
+      <!-- Heart Rate -->
+      <div class="metric-card" id="card-bpm">
+        <div class="metric-header">
+          <span class="metric-label">Heart Rate</span>
+          <span class="metric-icon">&#10084;&#65039;</span>
+        </div>
+        <div class="metric-body">
+          <span class="metric-value" id="bpm-value">72</span>
+          <span class="metric-unit">bpm</span>
+        </div>
+        <div class="controls">
+          <button class="control-btn" onclick="adjustBpm(-1)" aria-label="Decrease BPM">&minus;</button>
+          <button class="control-btn" onclick="adjustBpm(1)" aria-label="Increase BPM">+</button>
+        </div>
+      </div>
+
+      <!-- SpO2 -->
+      <div class="metric-card" id="card-spo2">
+        <div class="metric-header">
+          <span class="metric-label">Blood Oxygen</span>
+          <span class="metric-icon">&#129723;</span>
+        </div>
+        <div class="metric-body">
+          <span class="metric-value" id="spo2-value">98</span>
+          <span class="metric-unit">%</span>
+        </div>
+        <div class="controls">
+          <button class="control-btn" onclick="adjustSpo2(-1)" aria-label="Decrease SpO2">&minus;</button>
+          <button class="control-btn" onclick="adjustSpo2(1)" aria-label="Increase SpO2">+</button>
+        </div>
+      </div>
+
+      <!-- AQI -->
+      <div class="metric-card" id="card-aqi">
+        <div class="metric-header">
+          <span class="metric-label">Air Quality</span>
+          <span class="metric-icon">&#127811;</span>
+        </div>
+        <div class="metric-body">
+          <span class="metric-value" id="aqi-value">--</span>
+        </div>
+        <div class="aqi-pill-row">
+          <span class="aqi-pill" id="aqi-pill">Loading...</span>
+        </div>
+        <div class="aqi-details" id="aqi-details"></div>
+      </div>
+
+      <!-- Breathless Button -->
+      <button class="breathless-btn" id="breathless-btn" onclick="logBreathless()">
+        I feel breathless
+      </button>
+      <div class="breathless-confirm" id="breathless-confirm"></div>
+
+      <!-- Status -->
+      <div class="status-bar">
+        <span class="status-row"><span class="status-dot" id="status-dot"></span><span id="status-text">Connecting...</span></span>
+        <span id="last-aqi-time"></span>
+      </div>
+    </div>
+
+    <!-- View 2: Trends -->
+    <div id="trends" class="view hidden">
+      <div class="range-toggle">
+        <button class="active" onclick="setRange(7, this)">7 days</button>
+        <button onclick="setRange(14, this)">14 days</button>
+        <button onclick="setRange(30, this)">30 days</button>
+      </div>
+
+      <div class="chart-container">
+        <canvas id="trend-chart"></canvas>
+      </div>
+
+      <div class="events-section">
+        <div class="events-title">Breathless Events</div>
+        <div id="events-list"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

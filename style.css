@@ -1,0 +1,409 @@
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Design Tokens ── */
+:root {
+  --bg:           #FFFFFF;
+  --surface:      #F5F5F7;
+  --border:       #E5E5EA;
+  --text-primary: #1C1C1E;
+  --text-muted:   #8E8E93;
+
+  --good:         #30D158;
+  --warning:      #FF9F0A;
+  --danger:       #FF3B30;
+  --neutral:      #0A84FF;
+
+  --btn-bg:       #1C1C1E;
+  --btn-text:     #FFFFFF;
+
+  --chart-bpm:    #0A84FF;
+  --chart-spo2:   #30D158;
+  --chart-aqi:    #FF9F0A;
+  --chart-event:  #FF3B30;
+}
+
+html, body {
+  font-family: 'DM Sans', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  height: 100%;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── App Shell ── */
+.app {
+  max-width: 390px;
+  margin: 0 auto;
+  min-height: 100svh;
+  background: var(--bg);
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Navigation ── */
+.nav {
+  display: flex;
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 3px;
+  margin: 16px 28px 0;
+  position: relative;
+  z-index: 10;
+}
+
+.nav-btn {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-btn.active {
+  background: var(--bg);
+  color: var(--text-primary);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+/* ── Views ── */
+.view {
+  position: absolute;
+  top: 56px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 32px 28px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.view.hidden {
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.view::-webkit-scrollbar { width: 0; }
+
+/* ── Metric Card ── */
+.metric-card {
+  background: var(--surface);
+  border-radius: 20px;
+  padding: 20px 24px;
+}
+
+.metric-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.metric-label {
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.metric-icon {
+  font-size: 16px;
+}
+
+.metric-body {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.metric-value {
+  font-size: 64px;
+  font-weight: 200;
+  line-height: 1;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.3s ease, transform 0.12s ease;
+}
+
+.metric-value.pop {
+  transform: scale(1.08);
+}
+
+.metric-unit {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* ── +/- Controls ── */
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.control-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: none;
+  font-size: 22px;
+  font-weight: 300;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s ease, background 0.1s ease;
+}
+
+.control-btn:active {
+  transform: scale(0.92);
+  background: var(--border);
+}
+
+/* ── Status Colours on Values ── */
+.status-good    { color: var(--good); }
+.status-warning { color: var(--warning); }
+.status-danger  { color: var(--danger); }
+.status-neutral { color: var(--neutral); }
+
+/* ── AQI Pill ── */
+.aqi-pill-row {
+  margin-top: 8px;
+}
+
+.aqi-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background 0.3s ease, color 0.3s ease;
+  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+  color: var(--text-muted);
+}
+
+.aqi-pill.pill-good {
+  background: color-mix(in srgb, var(--good) 15%, transparent);
+  color: var(--good);
+}
+.aqi-pill.pill-warning {
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
+  color: var(--warning);
+}
+.aqi-pill.pill-danger {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
+}
+
+/* ── AQI Details ── */
+.aqi-details {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.aqi-details .pollutant {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+.aqi-details .pollutant span {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* ── Breathless Button ── */
+.breathless-btn {
+  width: 100%;
+  padding: 18px;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border: none;
+  border-radius: 16px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+  margin-top: auto;
+}
+
+.breathless-btn:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.4); }
+  100% { box-shadow: 0 0 0 20px rgba(255, 59, 48, 0); }
+}
+
+.breathless-btn.pressed {
+  animation: pulse-ring 0.6s ease-out;
+  background: var(--danger);
+}
+
+.breathless-confirm {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 6px;
+  height: 18px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.breathless-confirm.show {
+  opacity: 1;
+}
+
+/* ── Status Bar ── */
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 4px 0 0;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: background 0.3s ease;
+}
+
+/* ── Trends View ── */
+.range-toggle {
+  display: flex;
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 3px;
+}
+
+.range-toggle button {
+  flex: 1;
+  padding: 8px 0;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.range-toggle button.active {
+  background: var(--bg);
+  color: var(--text-primary);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.chart-container {
+  background: var(--surface);
+  border-radius: 20px;
+  padding: 20px;
+  height: 240px;
+}
+
+.chart-container canvas {
+  width: 100% !important;
+}
+
+/* ── Events List ── */
+.events-section {
+  margin-top: 4px;
+}
+
+.events-title {
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.event-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-radius: 14px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.event-time {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.event-stats {
+  display: flex;
+  gap: 12px;
+}
+
+.event-stats span {
+  font-weight: 500;
+}
+
+.event-stats .stat-bpm    { color: var(--chart-bpm); }
+.event-stats .stat-spo2   { color: var(--chart-spo2); }
+.event-stats .stat-aqi-ok { color: var(--good); }
+.event-stats .stat-aqi-warn { color: var(--warning); }
+.event-stats .stat-aqi-bad  { color: var(--danger); }
+
+/* ── No Data ── */
+.no-data {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+/* ── Safe area ── */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .app { padding-top: env(safe-area-inset-top); }
+}
