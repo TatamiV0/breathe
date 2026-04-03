@@ -98,6 +98,30 @@ html, body {
 
 .view::-webkit-scrollbar { width: 0; }
 
+/* ── Google Fit Connect Button ── */
+.fit-connect-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  background: var(--surface);
+  color: var(--neutral);
+  border: 1.5px dashed var(--border);
+  border-radius: 14px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.fit-connect-btn:active {
+  transform: scale(0.97);
+  background: var(--border);
+}
+
 /* ── Metric Card ── */
 .metric-card {
   background: var(--surface);
@@ -148,6 +172,20 @@ html, body {
   font-size: 13px;
   font-weight: 400;
   color: var(--text-muted);
+}
+
+/* ── Source Label ── */
+.metric-source {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-top: 6px;
+  letter-spacing: 0.04em;
+  transition: color 0.3s ease;
+}
+
+.metric-source.fit-source {
+  color: var(--neutral);
 }
 
 /* ── +/- Controls ── */
@@ -274,7 +312,6 @@ html, body {
   font-weight: 400;
   color: var(--text-muted);
   text-align: center;
-  margin-top: 6px;
   height: 18px;
   opacity: 0;
   transition: opacity 0.2s ease;
@@ -282,6 +319,31 @@ html, body {
 
 .breathless-confirm.show {
   opacity: 1;
+}
+
+/* ── Recent Event Chips ── */
+.recent-events {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-height: 0;
+}
+
+.event-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--danger);
+}
+
+.event-chip .chip-aqi {
+  color: var(--text-muted);
+  font-weight: 400;
 }
 
 /* ── Status Bar ── */
@@ -345,6 +407,36 @@ html, body {
 
 .chart-container canvas {
   width: 100% !important;
+}
+
+/* ── Summary Row ── */
+.summary-row {
+  display: flex;
+  gap: 10px;
+}
+
+.summary-card {
+  flex: 1;
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 14px 12px;
+  text-align: center;
+}
+
+.summary-label {
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.summary-value {
+  font-size: 22px;
+  font-weight: 200;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Events List ── */

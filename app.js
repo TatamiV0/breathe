@@ -4,11 +4,12 @@ let spo2 = 98;
 let aqi = null;
 let aqiLabel = '';
 let aqiData = null;
+let currentSource = 'manual'; // 'manual' or 'google_fit'
 let saveTimer = null;
-let currentRange = 7;
+let currentRange = 14;
 let trendChart = null;
 
-// ── Storage Helpers ──
+// ── Storage ──
 function getReadings() {
   return JSON.parse(localStorage.getItem('breathe_readings') || '[]');
 }
@@ -35,25 +36,27 @@ function showView(view) {
   if (view === 'trends') renderTrends();
 }
 
-// ── Number Pop Animation ──
+// ── Number Pop ──
 function popValue(el) {
   el.classList.add('pop');
   setTimeout(() => el.classList.remove('pop'), 120);
 }
 
-// ── BPM Controls ──
+// ── BPM ──
 function adjustBpm(delta) {
   bpm = Math.max(40, Math.min(200, bpm + delta));
   const el = document.getElementById('bpm-value');
   el.textContent = bpm;
   popValue(el);
+  currentSource = 'manual';
+  updateSourceLabel('bpm', 'manual');
   applyBpmColor();
   scheduleSave();
 }
 
 function applyBpmColor() {
   const el = document.getElementById('bpm-value');
-  el.classList.remove('status-good', 'status-warning', 'status-danger', 'status-neutral');
+  el.classList.remove('status-good', 'status-warning', 'status-danger');
   if (bpm > 120) {
     el.classList.add('status-danger');
   } else if (bpm < 60 || bpm > 100) {
@@ -63,12 +66,14 @@ function applyBpmColor() {
   }
 }
 
-// ── SpO2 Controls ──
+// ── SpO2 ──
 function adjustSpo2(delta) {
   spo2 = Math.max(70, Math.min(100, spo2 + delta));
   const el = document.getElementById('spo2-value');
   el.textContent = spo2;
   popValue(el);
+  currentSource = 'manual';
+  updateSourceLabel('spo2', 'manual');
   applySpo2Color();
   scheduleSave();
 }
@@ -85,7 +90,68 @@ function applySpo2Color() {
   }
 }
 
-// ── Auto-save 3s after last change ──
+// ── Source Labels ──
+function updateSourceLabel(metric, source, timestamp) {
+  const el = document.getElementById(`${metric}-source`);
+  if (!el) return;
+  el.classList.toggle('fit-source', source === 'google_fit');
+  if (source === 'google_fit') {
+    const time = timestamp
+      ? new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    el.textContent = `via Google Fit \u00b7 ${time}`;
+  } else {
+    el.textContent = 'manual';
+  }
+}
+
+// ── Override fit.js callbacks ──
+onFitDataReceived = function(newBpm, newSpo2) {
+  currentSource = 'google_fit';
+  const now = Date.now();
+
+  if (newBpm !== null) {
+    bpm = newBpm;
+    const el = document.getElementById('bpm-value');
+    el.textContent = bpm;
+    popValue(el);
+    applyBpmColor();
+    updateSourceLabel('bpm', 'google_fit', now);
+  }
+
+  if (newSpo2 !== null) {
+    spo2 = newSpo2;
+    const el = document.getElementById('spo2-value');
+    el.textContent = spo2;
+    popValue(el);
+    applySpo2Color();
+    updateSourceLabel('spo2', 'google_fit', now);
+  }
+
+  // Auto-save on Fit refresh
+  saveReading({
+    ts: now,
+    bpm,
+    spo2,
+    aqi: aqi || 0,
+    aqiLabel: aqiLabel || 'Unknown',
+    source: 'google_fit'
+  });
+};
+
+updateSourceLabels = function(source) {
+  updateSourceLabel('bpm', source);
+  updateSourceLabel('spo2', source);
+};
+
+updateFitTimestamp = function() {
+  if (fitLastUpdate) {
+    updateSourceLabel('bpm', 'google_fit', fitLastUpdate);
+    updateSourceLabel('spo2', 'google_fit', fitLastUpdate);
+  }
+};
+
+// ── Auto-save (debounced 3s) ──
 function scheduleSave() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
@@ -94,12 +160,13 @@ function scheduleSave() {
       bpm,
       spo2,
       aqi: aqi || 0,
-      aqiLabel: aqiLabel || 'Unknown'
+      aqiLabel: aqiLabel || 'Unknown',
+      source: currentSource
     });
   }, 3000);
 }
 
-// ── AQI Helpers ──
+// ── AQI ──
 function aqiStatus(val) {
   if (val <= 50) return 'good';
   if (val <= 100) return 'warning';
@@ -119,7 +186,7 @@ async function fetchAqi() {
   const cached = localStorage.getItem('breathe_aqi_cache');
   if (cached) {
     const { data, ts } = JSON.parse(cached);
-    if (Date.now() - ts < 15 * 60 * 1000) {
+    if (Date.now() - ts < CONFIG.AQI_REFRESH_MS) {
       applyAqi(data);
       return;
     }
@@ -136,7 +203,7 @@ async function fetchAqi() {
     const { latitude: lat, longitude: lng } = pos.coords;
     const res = await fetch(
       `https://api.ambeedata.com/latest/by-lat-lng?lat=${lat}&lng=${lng}`,
-      { headers: { 'x-api-key': CONFIG.AMBEE_API_KEY, 'Content-type': 'application/json' } }
+      { headers: { 'x-api-key': CONFIG.AMBEE_KEY, 'Content-type': 'application/json' } }
     );
 
     if (!res.ok) throw new Error(`API ${res.status}`);
@@ -187,7 +254,8 @@ function applyAqi(data) {
   if (data.no2) details.innerHTML += `<div class="pollutant">NO\u2082 <span>${data.no2}</span></div>`;
   if (data.co) details.innerHTML += `<div class="pollutant">CO <span>${data.co}</span></div>`;
 
-  document.getElementById('last-aqi-time').textContent = `AQI ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  document.getElementById('last-aqi-time').textContent =
+    `AQI ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   updateStatus('live', 'AQI live');
 }
 
@@ -195,7 +263,9 @@ function updateStatus(state, text) {
   const dot = document.getElementById('status-dot');
   const label = document.getElementById('status-text');
   label.textContent = text;
-  dot.style.background = state === 'live' ? 'var(--good)' : state === 'error' ? 'var(--danger)' : 'var(--text-muted)';
+  dot.style.background = state === 'live' ? 'var(--good)'
+    : state === 'error' ? 'var(--danger)'
+    : 'var(--text-muted)';
 }
 
 // ── Breathless Button ──
@@ -206,19 +276,40 @@ function logBreathless() {
   btn.classList.add('pressed');
   setTimeout(() => btn.classList.remove('pressed'), 600);
 
+  const now = Date.now();
+  const time = new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const confirm = document.getElementById('breathless-confirm');
-  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   confirm.textContent = `Logged ${time}`;
   confirm.classList.add('show');
   setTimeout(() => confirm.classList.remove('show'), 2000);
 
-  saveEvent({
-    ts: Date.now(),
+  const event = {
+    ts: now,
     bpm,
     spo2,
     aqi: aqi || 0,
     aqiLabel: aqiLabel || 'Unknown'
-  });
+  };
+  saveEvent(event);
+  renderRecentEvents();
+}
+
+// ── Recent Event Chips ──
+function renderRecentEvents() {
+  const events = getEvents();
+  const recent = events.sort((a, b) => b.ts - a.ts).slice(0, 2);
+  const container = document.getElementById('recent-events');
+
+  if (recent.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = recent.map(e => {
+    const time = new Date(e.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const date = new Date(e.ts).toLocaleDateString([], { month: 'short', day: 'numeric' });
+    return `<div class="event-chip">${date} ${time} <span class="chip-aqi">AQI ${e.aqi}</span></div>`;
+  }).join('');
 }
 
 // ── Trends ──
@@ -233,47 +324,50 @@ function renderTrends() {
   const readings = getReadings();
   const events = getEvents();
   const now = Date.now();
-  const cutoff = now - currentRange * 24 * 60 * 60 * 1000;
+  const cutoff = now - currentRange * 86400000;
 
+  // Day buckets
   const days = {};
   for (let i = 0; i < currentRange; i++) {
     const d = new Date(now - i * 86400000);
     const key = d.toISOString().slice(0, 10);
-    days[key] = { bpmSum: 0, bpmCount: 0, spo2Sum: 0, spo2Count: 0, aqiSum: 0, aqiCount: 0, events: 0 };
+    days[key] = { bpmS: 0, bpmC: 0, spo2S: 0, spo2C: 0, aqiS: 0, aqiC: 0, ev: 0 };
   }
 
   readings.filter(r => r.ts >= cutoff).forEach(r => {
     const key = new Date(r.ts).toISOString().slice(0, 10);
-    if (days[key]) {
-      days[key].bpmSum += r.bpm;
-      days[key].bpmCount++;
-      days[key].spo2Sum += r.spo2;
-      days[key].spo2Count++;
-      if (r.aqi) {
-        days[key].aqiSum += r.aqi;
-        days[key].aqiCount++;
-      }
-    }
+    if (!days[key]) return;
+    days[key].bpmS += r.bpm; days[key].bpmC++;
+    days[key].spo2S += r.spo2; days[key].spo2C++;
+    if (r.aqi) { days[key].aqiS += r.aqi; days[key].aqiC++; }
   });
 
   events.filter(e => e.ts >= cutoff).forEach(e => {
     const key = new Date(e.ts).toISOString().slice(0, 10);
-    if (days[key]) days[key].events++;
+    if (days[key]) days[key].ev++;
   });
 
   const labels = Object.keys(days).sort();
-  const bpmData = labels.map(k => days[k].bpmCount ? Math.round(days[k].bpmSum / days[k].bpmCount) : null);
-  const spo2Data = labels.map(k => days[k].spo2Count ? Math.round(days[k].spo2Sum / days[k].spo2Count) : null);
-  const aqiChartData = labels.map(k => days[k].aqiCount ? Math.round(days[k].aqiSum / days[k].aqiCount) : null);
-  const eventData = labels.map(k => days[k].events || 0);
+  const bpmData = labels.map(k => days[k].bpmC ? Math.round(days[k].bpmS / days[k].bpmC) : null);
+  const spo2Data = labels.map(k => days[k].spo2C ? Math.round(days[k].spo2S / days[k].spo2C) : null);
+  const aqiChartData = labels.map(k => days[k].aqiC ? Math.round(days[k].aqiS / days[k].aqiC) : null);
+  const eventData = labels.map(k => days[k].ev || 0);
 
   const shortLabels = labels.map(k => {
     const d = new Date(k + 'T12:00:00');
     return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
   });
 
-  if (trendChart) trendChart.destroy();
+  // Summary
+  const allBpm = bpmData.filter(v => v !== null);
+  const allSpo2 = spo2Data.filter(v => v !== null);
+  const allAqi = aqiChartData.filter(v => v !== null);
+  document.getElementById('sum-bpm').textContent = allBpm.length ? Math.round(allBpm.reduce((a, b) => a + b) / allBpm.length) : '--';
+  document.getElementById('sum-spo2').textContent = allSpo2.length ? Math.round(allSpo2.reduce((a, b) => a + b) / allSpo2.length) : '--';
+  document.getElementById('sum-aqi').textContent = allAqi.length ? Math.round(allAqi.reduce((a, b) => a + b) / allAqi.length) : '--';
 
+  // Chart
+  if (trendChart) trendChart.destroy();
   const canvas = document.getElementById('trend-chart');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
@@ -292,7 +386,7 @@ function renderTrends() {
         {
           label: 'BPM',
           data: bpmData,
-          borderColor: 'var(--chart-bpm)',
+          borderColor: '#0A84FF',
           backgroundColor: 'rgba(10, 132, 255, 0.08)',
           tension: 0.4,
           borderWidth: 2,
@@ -303,7 +397,7 @@ function renderTrends() {
         {
           label: 'SpO2 %',
           data: spo2Data,
-          borderColor: 'var(--chart-spo2)',
+          borderColor: '#30D158',
           backgroundColor: 'rgba(48, 209, 88, 0.08)',
           tension: 0.4,
           borderWidth: 2,
@@ -314,8 +408,9 @@ function renderTrends() {
         {
           label: 'AQI',
           data: aqiChartData,
-          borderColor: 'var(--chart-aqi)',
+          borderColor: '#FF9F0A',
           backgroundColor: 'rgba(255, 159, 10, 0.08)',
+          borderDash: [6, 3],
           tension: 0.4,
           borderWidth: 2,
           pointRadius: 3,
@@ -327,7 +422,7 @@ function renderTrends() {
           data: eventData,
           type: 'bar',
           backgroundColor: 'rgba(255, 59, 48, 0.2)',
-          borderColor: 'var(--chart-event)',
+          borderColor: '#FF3B30',
           borderWidth: 1,
           yAxisID: 'y2',
           barThickness: 4,
@@ -414,8 +509,8 @@ function renderEventsList(events, cutoff) {
     const time = new Date(e.ts).toLocaleString([], {
       month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
     });
-    const aqiStat = aqiStatus(e.aqi);
-    const aqiClass = aqiStat === 'good' ? 'stat-aqi-ok' : aqiStat === 'warning' ? 'stat-aqi-warn' : 'stat-aqi-bad';
+    const status = aqiStatus(e.aqi);
+    const aqiClass = status === 'good' ? 'stat-aqi-ok' : status === 'warning' ? 'stat-aqi-warn' : 'stat-aqi-bad';
     return `
       <div class="event-item">
         <span class="event-time">${time}</span>
@@ -433,7 +528,17 @@ function init() {
   applyBpmColor();
   applySpo2Color();
   fetchAqi();
-  setInterval(fetchAqi, 15 * 60 * 1000);
+  renderRecentEvents();
+  setInterval(fetchAqi, CONFIG.AQI_REFRESH_MS);
+
+  // Init Google Fit after GSI script loads
+  if (typeof google !== 'undefined' && google.accounts) {
+    initFit();
+  } else {
+    window.addEventListener('load', () => {
+      setTimeout(initFit, 500);
+    });
+  }
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(err =>

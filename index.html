@@ -23,6 +23,9 @@
     <!-- View 1: Live Monitor -->
     <div id="monitor" class="view">
 
+      <!-- Google Fit Connect -->
+      <button class="fit-connect-btn" id="fit-connect-btn" onclick="connectFit()">Connect Google Fit</button>
+
       <!-- Heart Rate -->
       <div class="metric-card" id="card-bpm">
         <div class="metric-header">
@@ -33,6 +36,7 @@
           <span class="metric-value" id="bpm-value">72</span>
           <span class="metric-unit">bpm</span>
         </div>
+        <div class="metric-source" id="bpm-source">manual</div>
         <div class="controls">
           <button class="control-btn" onclick="adjustBpm(-1)" aria-label="Decrease BPM">&minus;</button>
           <button class="control-btn" onclick="adjustBpm(1)" aria-label="Increase BPM">+</button>
@@ -49,6 +53,7 @@
           <span class="metric-value" id="spo2-value">98</span>
           <span class="metric-unit">%</span>
         </div>
+        <div class="metric-source" id="spo2-source">manual</div>
         <div class="controls">
           <button class="control-btn" onclick="adjustSpo2(-1)" aria-label="Decrease SpO2">&minus;</button>
           <button class="control-btn" onclick="adjustSpo2(1)" aria-label="Increase SpO2">+</button>
@@ -76,6 +81,9 @@
       </button>
       <div class="breathless-confirm" id="breathless-confirm"></div>
 
+      <!-- Recent Events Chips -->
+      <div class="recent-events" id="recent-events"></div>
+
       <!-- Status -->
       <div class="status-bar">
         <span class="status-row"><span class="status-dot" id="status-dot"></span><span id="status-text">Connecting...</span></span>
@@ -95,6 +103,22 @@
         <canvas id="trend-chart"></canvas>
       </div>
 
+      <!-- Summary Cards -->
+      <div class="summary-row" id="summary-row">
+        <div class="summary-card">
+          <div class="summary-label">Avg BPM</div>
+          <div class="summary-value" id="sum-bpm">--</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Avg SpO2</div>
+          <div class="summary-value" id="sum-spo2">--</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Avg AQI</div>
+          <div class="summary-value" id="sum-aqi">--</div>
+        </div>
+      </div>
+
       <div class="events-section">
         <div class="events-title">Breathless Events</div>
         <div id="events-list"></div>
@@ -103,8 +127,10 @@
 
   </div>
 
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="config.js"></script>
+  <script src="fit.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
