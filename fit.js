@@ -83,12 +83,27 @@ function onFitConnected() {
 }
 
 function connectFit() {
+  if (!CONFIG.GOOGLE_CLIENT_ID || CONFIG.GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID') {
+    showFitConnect('Set GOOGLE_CLIENT_ID in config.js');
+    console.error('Google Fit: GOOGLE_CLIENT_ID not configured in config.js');
+    return;
+  }
+  if (typeof google === 'undefined' || !google.accounts) {
+    showFitConnect('Google not loaded. Check connection.');
+    console.error('Google Fit: GSI library not loaded');
+    return;
+  }
   setupTokenClient();
   if (!fitTokenClient) {
     showFitConnect('Loading Google... tap again');
     return;
   }
-  fitTokenClient.requestAccessToken();
+  try {
+    fitTokenClient.requestAccessToken();
+  } catch (err) {
+    console.error('Google Fit: OAuth request failed', err);
+    showFitConnect('Connection failed. Tap to retry.');
+  }
 }
 
 function disconnectFit() {
