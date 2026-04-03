@@ -1,4 +1,6 @@
-// Ambee Air Quality API key — keep this file gitignored
 const CONFIG = {
-  AMBEE_API_KEY: '780c7732bef8f7432b44e70f6d049a2b22be10d0e638b22d4d4cd291f9c2d92d'
+  AMBEE_KEY: '780c7732bef8f7432b44e70f6d049a2b22be10d0e638b22d4d4cd291f9c2d92d',
+  GOOGLE_CLIENT_ID: '215341760179-fpas51serd2m0tg3jg2ian927dbfij36.apps.googleusercontent.com',
+  AQI_REFRESH_MS: 900000,
+  FIT_REFRESH_MS: 300000,
 };
