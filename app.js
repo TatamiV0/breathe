@@ -182,6 +182,36 @@ function aqiLabelFromValue(val) {
   return 'Hazardous';
 }
 
+async function getLocation() {
+  // Try browser geolocation first
+  try {
+    const pos = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: false,
+        timeout: 8000
+      });
+    });
+    return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  } catch (e) {
+    console.warn('Geolocation denied, falling back to IP lookup');
+  }
+
+  // Fallback: IP-based location
+  try {
+    const res = await fetch('https://ipapi.co/json/');
+    if (res.ok) {
+      const json = await res.json();
+      if (json.latitude && json.longitude) {
+        return { lat: json.latitude, lng: json.longitude };
+      }
+    }
+  } catch (e) {
+    console.warn('IP geolocation also failed');
+  }
+
+  return null;
+}
+
 async function fetchAqi() {
   const cached = localStorage.getItem('breathe_aqi_cache');
   if (cached) {
@@ -193,16 +223,11 @@ async function fetchAqi() {
   }
 
   try {
-    const pos = await new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: false,
-        timeout: 10000
-      });
-    });
+    const loc = await getLocation();
+    if (!loc) throw new Error('No location available');
 
-    const { latitude: lat, longitude: lng } = pos.coords;
     const res = await fetch(
-      `https://api.ambeedata.com/latest/by-lat-lng?lat=${lat}&lng=${lng}`,
+      `https://api.ambeedata.com/latest/by-lat-lng?lat=${loc.lat}&lng=${loc.lng}`,
       { headers: { 'x-api-key': CONFIG.AMBEE_KEY, 'Content-type': 'application/json' } }
     );
 
@@ -226,7 +251,7 @@ async function fetchAqi() {
     console.warn('AQI fetch failed:', err);
     document.getElementById('aqi-value').textContent = '--';
     const pill = document.getElementById('aqi-pill');
-    pill.textContent = 'Unavailable';
+    pill.textContent = 'Allow location or check connection';
     pill.className = 'aqi-pill';
     updateStatus('error', 'AQI unavailable');
   }
