@@ -1,3 +1,23 @@
+// ── Debug Logger (temporary — tap status bar 5x to show) ──
+let debugTaps = 0;
+function dbg(msg) {
+  console.log('[Breathe]', msg);
+  const el = document.getElementById('debug-log');
+  if (el) {
+    el.textContent += new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}) + ' ' + msg + '\n';
+    el.scrollTop = el.scrollHeight;
+  }
+}
+function toggleDebug() {
+  debugTaps++;
+  if (debugTaps >= 5) {
+    const el = document.getElementById('debug-log');
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    debugTaps = 0;
+  }
+  setTimeout(() => { debugTaps = 0; }, 3000);
+}
+
 // ── State ──
 let bpm = 72;
 let spo2 = 98;
@@ -107,6 +127,7 @@ function updateSourceLabel(metric, source, timestamp) {
 
 // ── Override fit.js callbacks ──
 onFitDataReceived = function(newBpm, newSpo2) {
+  dbg('FIT DATA RECEIVED: bpm=' + newBpm + ' spo2=' + newSpo2);
   currentSource = 'google_fit';
   const now = Date.now();
 
@@ -152,6 +173,7 @@ updateFitTimestamp = function() {
 };
 
 onFitNoData = function() {
+  dbg('FIT: connected but NO DATA returned');
   const bpmSrc = document.getElementById('bpm-source');
   const spo2Src = document.getElementById('spo2-source');
   if (bpmSrc) { bpmSrc.textContent = 'Fit connected \u00b7 no recent data'; bpmSrc.classList.add('fit-source'); }
@@ -190,7 +212,7 @@ function aqiLabelFromValue(val) {
 }
 
 async function getLocation() {
-  // Try browser geolocation first
+  dbg('getLocation: trying browser geolocation...');
   try {
     const pos = await new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -198,24 +220,28 @@ async function getLocation() {
         timeout: 8000
       });
     });
+    dbg('getLocation: browser OK lat=' + pos.coords.latitude.toFixed(2) + ' lng=' + pos.coords.longitude.toFixed(2));
     return { lat: pos.coords.latitude, lng: pos.coords.longitude };
   } catch (e) {
-    console.warn('Geolocation denied, falling back to IP lookup');
+    dbg('getLocation: browser failed: ' + (e.message || e.code));
   }
 
-  // Fallback: IP-based location via ipwho.is (free, HTTPS, no key)
+  dbg('getLocation: trying ipwho.is fallback...');
   try {
     const res = await fetch('https://ipwho.is/');
+    dbg('getLocation: ipwho.is status=' + res.status);
     if (res.ok) {
       const json = await res.json();
+      dbg('getLocation: ipwho.is success=' + json.success + ' lat=' + json.latitude + ' lng=' + json.longitude);
       if (json.success && json.latitude && json.longitude) {
         return { lat: json.latitude, lng: json.longitude };
       }
     }
   } catch (e) {
-    console.warn('IP geolocation also failed');
+    dbg('getLocation: ipwho.is failed: ' + e.message);
   }
 
+  dbg('getLocation: ALL FAILED');
   return null;
 }
 

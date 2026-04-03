@@ -85,10 +85,13 @@
       <div class="recent-events" id="recent-events"></div>
 
       <!-- Status -->
-      <div class="status-bar">
+      <div class="status-bar" onclick="toggleDebug()">
         <span class="status-row"><span class="status-dot" id="status-dot"></span><span id="status-text">Connecting...</span></span>
         <span id="last-aqi-time"></span>
       </div>
+
+      <!-- Debug (temporary) -->
+      <div id="debug-log" style="margin-top:12px;padding:12px;background:#F5F5F7;border-radius:12px;font-size:10px;font-family:monospace;color:#8E8E93;white-space:pre-wrap;max-height:200px;overflow-y:auto;display:none;"></div>
     </div>
 
     <!-- View 2: Trends -->
